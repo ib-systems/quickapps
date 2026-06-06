@@ -15,10 +15,8 @@
 #   XUI_PASSWORD    - Panel password           (default: random 10 chars)
 #   XUI_BASEPATH    - Web base path            (default: random 18 chars)
 #   XUI_VERSION     - Release tag, e.g. v2.6.0 (default: latest)
-#   XUI_SSL         - SSL mode: ip | domain | skip  (default: ip)
-#   XUI_SSL_DOMAIN  - Domain for SSL when XUI_SSL=domain
+#   XUI_SSL         - SSL mode: ip | skip       (default: ip)
 #   XUI_SSL_PORT    - ACME standalone port     (default: 80)
-#   XUI_SSL_IPV6    - Optional IPv6 for IP cert
 #   XUI_FOLDER      - Install path             (default: /usr/local/x-ui)
 
 set -euo pipefail
@@ -35,8 +33,6 @@ XUI_SERVICE="/etc/systemd/system"
 
 XUI_SSL="${XUI_SSL:-ip}"
 XUI_SSL_PORT="${XUI_SSL_PORT:-80}"
-XUI_SSL_DOMAIN="${XUI_SSL_DOMAIN:-}"
-XUI_SSL_IPV6="${XUI_SSL_IPV6:-}"
 XUI_VERSION="${XUI_VERSION:-}"
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -44,6 +40,8 @@ XUI_VERSION="${XUI_VERSION:-}"
 die()  { echo -e "${red}FATAL: ${plain}$*" >&2; exit 1; }
 info() { echo -e "${green}$*${plain}"; }
 warn() { echo -e "${yellow}$*${plain}"; }
+
+CURL_RETRY_OPTS="--connect-timeout 10 --max-time 300 --retry 20 --retry-delay 5 --retry-all-errors"
 
 gen_random() {
     openssl rand -base64 $(( $1 * 2 )) | tr -dc 'a-zA-Z0-9' | head -c "$1"
@@ -132,7 +130,8 @@ esac
 # ─── 2. Download 3x-ui ──────────────────────────────────────────────────────
 
 if [[ -z "${XUI_VERSION}" ]]; then
-    XUI_VERSION=$(curl -4Ls "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" \
+    XUI_VERSION=$(curl -4Ls ${CURL_RETRY_OPTS} \
+        "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" \
         | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     [[ -z "${XUI_VERSION}" ]] && die "Failed to fetch latest version from GitHub"
 fi
@@ -146,6 +145,7 @@ fi
 
 cd "${XUI_FOLDER%/x-ui}/"
 curl -4fLRo "x-ui-linux-${ARCH}.tar.gz" \
+    ${CURL_RETRY_OPTS} \
     "https://github.com/MHSanaei/3x-ui/releases/download/${XUI_VERSION}/x-ui-linux-${ARCH}.tar.gz" \
     || die "Download failed — check network / version tag"
 tar zxf "x-ui-linux-${ARCH}.tar.gz"
@@ -166,7 +166,9 @@ fi
 # ─── 4. Install CLI helper ──────────────────────────────────────────────────
 
 curl -4fLRo /usr/bin/x-ui \
-    https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
+    ${CURL_RETRY_OPTS} \
+    "https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh" \
+    || die "Failed to download x-ui CLI helper"
 chmod +x /usr/bin/x-ui
 mkdir -p /var/log/x-ui
 
@@ -174,7 +176,9 @@ mkdir -p /var/log/x-ui
 
 if [[ "${RELEASE}" == "alpine" ]]; then
     curl -4fLRo /etc/init.d/x-ui \
-        https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.rc
+        ${CURL_RETRY_OPTS} \
+        "https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.rc" \
+        || die "Failed to download x-ui init script"
     chmod +x /etc/init.d/x-ui
     rc-update add x-ui
 else
@@ -196,7 +200,9 @@ else
             *)                      svc_suffix=".rhel" ;;
         esac
         curl -4fLRo "${XUI_SERVICE}/x-ui.service" \
-            "https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service${svc_suffix}"
+            ${CURL_RETRY_OPTS} \
+            "https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service${svc_suffix}" \
+            || die "Failed to download x-ui service file"
     fi
 
     chown root:root "${XUI_SERVICE}/x-ui.service"
@@ -223,8 +229,21 @@ SERVER_IP=""
 setup_acme() {
     export HOME=/root
     if ! [[ -f ~/.acme.sh/acme.sh ]]; then
-        info "Installing acme.sh..."
-        curl -fSL https://get.acme.sh 2>&1 | bash 2>&1
+        info "Installing acme.sh via codeload..."
+        local acme_tmp="/tmp/acme-install-$$"
+        mkdir -p "${acme_tmp}"
+        if curl -4fL ${CURL_RETRY_OPTS} \
+            -o "${acme_tmp}/acme.tar.gz" \
+            "https://github.com/acmesh-official/acme.sh/archive/master.tar.gz" 2>&1; then
+            tar zxf "${acme_tmp}/acme.tar.gz" -C "${acme_tmp}"
+            info "Extracted to ${acme_tmp}/acme.sh-master"
+            ls -la "${acme_tmp}/acme.sh-master/acme.sh" || warn "acme.sh not found in archive"
+            cd "${acme_tmp}/acme.sh-master"
+            info "Running acme.sh --install from $(pwd)"
+            ./acme.sh --install 2>&1 || warn "acme.sh --install exited with $?"
+            cd /
+        fi
+        rm -rf "${acme_tmp}"
     fi
     if ! [[ -f ~/.acme.sh/acme.sh ]]; then
         warn "acme.sh install failed — skipping SSL"
@@ -240,17 +259,25 @@ install_ip_cert() {
 
     setup_acme || return 1
 
-    local domain_args="-d ${SERVER_IP}"
-    [[ -n "${XUI_SSL_IPV6}" ]] && domain_args="${domain_args} -d ${XUI_SSL_IPV6}"
-
-    ~/.acme.sh/acme.sh --issue \
-        ${domain_args} \
-        --standalone \
-        --server letsencrypt \
-        --certificate-profile shortlived \
-        --days 6 \
-        --httpport "${XUI_SSL_PORT}" \
-        --force || { warn "IP cert issuance failed — is port ${XUI_SSL_PORT} open?"; return 1; }
+    local attempt
+    for attempt in $(seq 1 20); do
+        if ~/.acme.sh/acme.sh --issue \
+            -d "${SERVER_IP}" \
+            --standalone \
+            --server letsencrypt \
+            --certificate-profile shortlived \
+            --days 6 \
+            --httpport "${XUI_SSL_PORT}" \
+            --force; then
+            break
+        fi
+        if [[ $attempt -eq 20 ]]; then
+            warn "IP cert issuance failed after 20 attempts — is port ${XUI_SSL_PORT} open?"
+            return 1
+        fi
+        warn "IP cert attempt ${attempt}/20 failed, retrying in 10s..."
+        sleep 10
+    done
 
     local cert_dir="/root/cert/ip"
     mkdir -p "${cert_dir}"
@@ -274,46 +301,9 @@ install_ip_cert() {
     fi
 }
 
-install_domain_cert() {
-    [[ -z "${XUI_SSL_DOMAIN}" ]] && die "XUI_SSL=domain requires XUI_SSL_DOMAIN to be set"
-    SERVER_IP="${XUI_SSL_DOMAIN}"
-    info "Setting up Let's Encrypt certificate for ${XUI_SSL_DOMAIN}..."
-
-    setup_acme || return 1
-
-    local cert_dir="/root/cert/${XUI_SSL_DOMAIN}"
-    mkdir -p "${cert_dir}"
-
-    ~/.acme.sh/acme.sh --issue \
-        -d "${XUI_SSL_DOMAIN}" \
-        --listen-v6 --standalone \
-        --httpport "${XUI_SSL_PORT}" \
-        --force || { warn "Domain cert issuance failed"; return 1; }
-
-    ~/.acme.sh/acme.sh --installcert -d "${XUI_SSL_DOMAIN}" \
-        --key-file "${cert_dir}/privkey.pem" \
-        --fullchain-file "${cert_dir}/fullchain.pem" \
-        --reloadcmd "systemctl restart x-ui 2>/dev/null || rc-service x-ui restart 2>/dev/null || true" \
-        2>&1 || true
-
-    if [[ -f "${cert_dir}/fullchain.pem" && -f "${cert_dir}/privkey.pem" ]]; then
-        chmod 600 "${cert_dir}/privkey.pem"
-        chmod 644 "${cert_dir}/fullchain.pem"
-        "${XUI_FOLDER}/x-ui" cert -webCert "${cert_dir}/fullchain.pem" -webCertKey "${cert_dir}/privkey.pem"
-        ~/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1
-        info "Domain certificate installed successfully"
-        return 0
-    else
-        warn "Certificate files not found after install"
-        return 1
-    fi
-}
-
 case "${XUI_SSL}" in
     ip)
         install_ip_cert || warn "SSL setup failed — panel will run without TLS" ;;
-    domain)
-        install_domain_cert || warn "SSL setup failed — panel will run without TLS" ;;
     skip)
         info "Skipping SSL setup (XUI_SSL=skip)" ;;
     *)
