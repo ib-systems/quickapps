@@ -3,6 +3,9 @@
 apt update
 apt install -y wget curl
 
+mkdir -p /run/sshd
+chmod 755 /run/sshd
+
 wget https://repo.fastpanel.direct/install_fastpanel.sh -O /tmp/install_fastpanel.sh
 chmod +x /tmp/install_fastpanel.sh
 /tmp/install_fastpanel.sh
