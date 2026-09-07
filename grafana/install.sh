@@ -3,7 +3,7 @@
 set -e
 
 apt-get update
-apt-get install -y curl ca-certificates docker-compose-plugin
+apt-get install -y curl ca-certificates 
 
 if ! command -v docker >/dev/null 2>&1; then
     curl -fsSL https://get.docker.com | sh
