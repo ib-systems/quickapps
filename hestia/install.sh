@@ -15,5 +15,5 @@ bash /tmp/hst-install.sh \
     --interactive no \
     --hostname "$(hostname -f)" \
     --email "admin@localhost" \
-    --username "admin" \
+    --username "hestiaadmin" \
     --password "$HESTIA_PASSWORD"
