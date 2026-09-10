@@ -15,7 +15,7 @@ mkdir -p /opt/owncloud
 cd /opt/owncloud
 
 cat > .env <<EOF
-OWNCLOUD_VERSION=11.0
+OWNCLOUD_VERSION=11.0.0
 OWNCLOUD_DOMAIN=$(hostname -I | awk '{print $1}')
 
 ADMIN_USERNAME=admin
