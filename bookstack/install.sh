@@ -64,8 +64,7 @@ services:
     volumes:
       - bookstack_config:/config
     depends_on:
-      bookstack_db:
-        condition: service_healthy
+      - bookstack_db
 
   bookstack_db:
     image: lscr.io/linuxserver/mariadb:latest
@@ -81,11 +80,6 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - bookstack_db_config:/config
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
 volumes:
   bookstack_config:
