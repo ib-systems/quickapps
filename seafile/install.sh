@@ -68,8 +68,7 @@ INIT_SEAFILE_ADMIN_PASSWORD=${SEAFILE_ADMIN_PASSWORD}
 ENABLE_SEADOC=true
 EOF
 
-sed -i \
-    's/# - "80:80"/- "80:80"/' \
-    seafile-server.yml
+sed -i 's/^    # ports:$/    ports:/' seafile-server.yml
+sed -i 's/^    #   - "80:80"$/      - "80:80"/' seafile-server.yml
 
 docker compose up -d
