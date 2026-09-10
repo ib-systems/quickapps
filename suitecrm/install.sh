@@ -2,26 +2,18 @@
 
 set -Eeuo pipefail
 
-APP_DIR="/opt/suitecrm"
+# ==================================================
+# Configuration
+# ==================================================
 
+APP_DIR="/opt/suitecrm"
 SUITECRM_IMAGE="guerchele/suitecrm:8.10.1"
 
-# ==================================================
-# SuiteCRM administrator
-# Password MUST be supplied by cloud-init
-# ==================================================
-
 SUITECRM_ADMIN_USER="root"
-
 SUITECRM_ADMIN_PASSWORD="${SUITECRM_ADMIN_PASSWORD:?SUITECRM_ADMIN_PASSWORD is required}"
 
 SUITECRM_DEMO_DATA="false"
-
 SUITECRM_IGNORE_SYSTEM_CHECK_WARNINGS="true"
-
-echo "=========================================="
-echo " SuiteCRM Quick App Installer"
-echo "=========================================="
 
 
 # ==================================================
@@ -31,7 +23,6 @@ echo "=========================================="
 echo "[1/8] Installing dependencies..."
 
 apt-get update
-
 apt-get install -y \
     ca-certificates \
     curl \
@@ -48,18 +39,17 @@ if ! command -v docker >/dev/null 2>&1; then
     curl -fsSL https://get.docker.com | sh
 fi
 
-systemctl enable docker
-systemctl start docker
+systemctl enable --now docker
+
 
 # ==================================================
-# 3. Create directories
+# 3. Creating directories
 # ==================================================
 
 echo "[3/8] Creating directories..."
 
-mkdir -p "$APP_DIR/suitecrm"
-mkdir -p "$APP_DIR/mysql"
-mkdir -p "$APP_DIR/nginx"
+mkdir -p "$APP_DIR"
+cd "$APP_DIR"
 
 
 # ==================================================
@@ -86,8 +76,6 @@ SUITECRM_ADMIN_USER=${SUITECRM_ADMIN_USER}
 SUITECRM_ADMIN_PASSWORD=${SUITECRM_ADMIN_PASSWORD}
 SUITECRM_DEMO_DATA=${SUITECRM_DEMO_DATA}
 SUITECRM_IGNORE_SYSTEM_CHECK_WARNINGS=${SUITECRM_IGNORE_SYSTEM_CHECK_WARNINGS}
-
-SITE_URL=${SITE_URL}
 EOF
 
 chmod 600 "$APP_DIR/.env"
@@ -114,300 +102,122 @@ EOF
 
 
 # ==================================================
-# 6. Create Nginx configuration
+# 6. Create docker-compose.yml
 # ==================================================
 
-echo "[6/8] Creating Nginx configuration..."
+echo "[6/8] Creating docker-compose.yml..."
 
-cat > "$APP_DIR/nginx/default.conf" <<'EOF'
+cat > "$APP_DIR/docker-compose.yml" <<EOF
+services:
+
+  db:
+    image: mariadb:10.11
+    container_name: suitecrm-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: \${DB_NAME}
+      MYSQL_USER: \${DB_USER}
+      MYSQL_PASSWORD: \${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: \${DB_ROOT_PASSWORD}
+    volumes:
+      - suitecrm_db:/var/lib/mysql
+    networks:
+      - suitecrm
+
+  suitecrm:
+    image: \${SUITECRM_IMAGE}
+    container_name: suitecrm
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: \${DB_NAME}
+      DB_USER: \${DB_USER}
+      DB_PASSWORD: \${DB_PASSWORD}
+
+      SUITECRM_ADMIN_USER: \${SUITECRM_ADMIN_USER}
+      SUITECRM_ADMIN_PASSWORD: \${SUITECRM_ADMIN_PASSWORD}
+      SUITECRM_DEMO_DATA: \${SUITECRM_DEMO_DATA}
+      SUITECRM_IGNORE_SYSTEM_CHECK_WARNINGS: \${SUITECRM_IGNORE_SYSTEM_CHECK_WARNINGS}
+
+      SITE_URL: \${SITE_URL}
+    volumes:
+      - suitecrm_data:/var/www/html
+    networks:
+      - suitecrm
+
+  nginx:
+    image: nginx:alpine
+    container_name: suitecrm-nginx
+    restart: unless-stopped
+    depends_on:
+      - suitecrm
+    ports:
+      - "80:80"
+    volumes:
+      - suitecrm_data:/var/www/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - suitecrm
+
+volumes:
+  suitecrm_db:
+  suitecrm_data:
+
+networks:
+  suitecrm:
+EOF
+
+
+# ==================================================
+# 7. Create nginx configuration
+# ==================================================
+
+echo "[7/8] Creating nginx configuration..."
+
+cat > "$APP_DIR/nginx.conf" <<'EOF'
 server {
-
-    listen 80 default_server;
-
+    listen 80;
     server_name _;
 
-    client_max_body_size 256M;
+    root /var/www/html;
+    index index.php index.html;
 
-    proxy_read_timeout 720s;
-    proxy_connect_timeout 720s;
-    proxy_send_timeout 720s;
-
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Port $server_port;
+    client_max_body_size 100M;
 
     location / {
-
-        proxy_pass http://suitecrm:80;
-
+        try_files $uri $uri/ /index.php?$query_string;
     }
 
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass suitecrm:9000;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
 }
 EOF
 
 
 # ==================================================
-# 7. Create Docker Compose
-# ==================================================
-
-echo "[7/8] Creating Docker Compose..."
-
-cat > "$APP_DIR/docker-compose.yml" <<'EOF'
-services:
-
-  # ==================================================
-  # Nginx
-  # ==================================================
-
-  nginx:
-
-    image: nginx:1.27-alpine
-
-    container_name: suitecrm_nginx
-
-    restart: unless-stopped
-
-    ports:
-
-      - "80:80"
-
-    volumes:
-
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-
-    depends_on:
-
-      - suitecrm
-
-    networks:
-
-      - suitecrm
-
-
-  # ==================================================
-  # SuiteCRM
-  # ==================================================
-
-  suitecrm:
-
-    image: ${SUITECRM_IMAGE}
-
-    container_name: suitecrm_app
-
-    restart: unless-stopped
-
-    environment:
-
-      DB_HOST: mysql
-
-      DB_PORT: 3306
-
-      DB_NAME: ${DB_NAME}
-
-      DB_USER: ${DB_USER}
-
-      DB_PASSWORD: ${DB_PASSWORD}
-
-      SITE_URL: ${SITE_URL}
-
-      SUITECRM_ADMIN_USER: ${SUITECRM_ADMIN_USER}
-
-      SUITECRM_ADMIN_PASSWORD: ${SUITECRM_ADMIN_PASSWORD}
-
-      SUITECRM_DEMO_DATA: ${SUITECRM_DEMO_DATA}
-
-    volumes:
-
-      - ./suitecrm:/var/lib/suitecrm
-
-    depends_on:
-
-      - mysql
-
-    networks:
-
-      - suitecrm
-
-
-  # ==================================================
-  # MariaDB
-  # ==================================================
-
-  mysql:
-
-    image: mariadb:10.11
-
-    container_name: suitecrm_mysql
-
-    restart: unless-stopped
-
-    environment:
-
-      MYSQL_DATABASE: ${DB_NAME}
-
-      MYSQL_USER: ${DB_USER}
-
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-
-    command:
-
-      - --character-set-server=utf8mb4
-
-      - --collation-server=utf8mb4_unicode_ci
-
-    volumes:
-
-      - ./mysql:/var/lib/mysql
-
-    networks:
-
-      - suitecrm
-
-
-# ==================================================
-# Network
-# ==================================================
-
-networks:
-
-  suitecrm:
-
-    driver: bridge
-EOF
-
-
-# ==================================================
-# 8. Pull and start containers
+# 8. Start SuiteCRM
 # ==================================================
 
 echo "[8/8] Starting SuiteCRM..."
 
-cd "$APP_DIR"
-
-docker compose pull
-
-docker compose up -d
-
-
-# ==================================================
-# Wait for MariaDB
-# ==================================================
-
-echo
-echo "Waiting for MariaDB..."
-
-for i in $(seq 1 60); do
-
-    if docker exec suitecrm_mysql \
-        mariadb-admin \
-        ping \
-        -h 127.0.0.1 \
-        -u root \
-        -p"$DB_ROOT_PASSWORD" \
-        >/dev/null 2>&1
-    then
-
-        echo "MariaDB is ready."
-
-        break
-
-    fi
-
-    if [ "$i" -eq 60 ]; then
-
-        echo "ERROR: MariaDB did not become ready."
-
-        docker compose logs mysql
-
-        exit 1
-
-    fi
-
-    sleep 2
-
-done
-
-
-# ==================================================
-# Wait for SuiteCRM
-# ==================================================
-
-echo "Waiting for SuiteCRM..."
-
-for i in $(seq 1 90); do
-
-    if curl \
-        -fsS \
-        --max-time 5 \
-        "http://${SERVER_IP}/" \
-        >/dev/null 2>&1
-    then
-
-        echo "SuiteCRM is responding."
-
-        break
-
-    fi
-
-    if [ "$i" -eq 90 ]; then
-
-        echo "ERROR: SuiteCRM did not become ready."
-
-        docker compose logs suitecrm
-
-        exit 1
-
-    fi
-
-    sleep 2
-
-done
-
-
-# ==================================================
-# Save installation status
-# ==================================================
-
-cat > "$APP_DIR/install-status" <<EOF
-status=ready
-application=suitecrm
-version=8.10.1
-url=${SITE_URL}/
-admin_username=${SUITECRM_ADMIN_USER}
-installed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-EOF
-
-chmod 600 "$APP_DIR/install-status"
-
-
-# ==================================================
-# Final output
-# ==================================================
+docker compose --env-file "$APP_DIR/.env" up -d
 
 echo
 echo "=========================================="
-echo " SuiteCRM is ready!"
+echo "SuiteCRM installation completed"
 echo "=========================================="
 echo
-echo "URL:"
+echo "URL: ${SITE_URL}"
+echo "Admin user: ${SUITECRM_ADMIN_USER}"
 echo
-echo "${SITE_URL}/"
-echo
-echo "Administrator:"
-echo
-echo "Username: ${SUITECRM_ADMIN_USER}"
-echo "Password: supplied through cloud-init"
-echo
-echo "Database credentials:"
-echo
-echo "${APP_DIR}/.env"
-echo
-echo "=========================================="
-echo
-
+echo "Containers:"
 docker compose ps
