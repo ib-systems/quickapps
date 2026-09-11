@@ -21,6 +21,8 @@ apt-get install -y curl ca-certificates
 # Install OpenClaw
 # --------------------------------------------------
 
+export HOME=/root
+
 echo "Installing OpenClaw..."
 
 curl -fsSL --proto "=https" --tlsv1.2 \
