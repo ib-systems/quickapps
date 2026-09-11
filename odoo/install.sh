@@ -9,8 +9,6 @@ if ! command -v docker >/dev/null 2>&1; then
     curl -fsSL https://get.docker.com | sh
 fi
 
-apt-get install -y docker-compose-plugin
-
 systemctl enable --now docker
 
 mkdir -p /opt/leantime
