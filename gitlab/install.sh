@@ -21,7 +21,7 @@ docker run -d \
     --restart always \
     --publish 80:80 \
     --publish 443:443 \
-    --publish 22:22 \
+    --publish 2222:22 \
     --volume /opt/gitlab/config:/etc/gitlab \
     --volume /opt/gitlab/logs:/var/log/gitlab \
     --volume /opt/gitlab/data:/var/opt/gitlab \
