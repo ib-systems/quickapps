@@ -67,6 +67,14 @@ EOF
 
 chmod 600 "$APP_DIR/.env"
 
+cat > /root/credentials.txt <<EOF
+Host: drupal_mysql
+Database name: ${DB_NAME}
+Database User: ${DB_USER}
+Database Password: ${DB_PASSWORD}
+EOF
+
+chmod 600 /root/credentials.txt
 
 # ==================================================
 # 5. Detect VPS IP
