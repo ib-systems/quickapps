@@ -70,6 +70,14 @@ EOF
 
 chmod 600 "$APP_DIR/.env"
 
+cat > /root/credentials.txt <<EOF
+Host: joomla_mysql
+Database name: joomla
+Database User: joomla
+Database Password: ${DB_PASSWORD}
+EOF
+
+chmod 600 /root/credentials.txt
 
 # ==================================================
 # 5. Create Nginx configuration
