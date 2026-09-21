@@ -2,6 +2,10 @@
 
 set -e
 
+# Install required packages
+apt-get update
+apt-get install -y curl pwgen ca-certificates
+
 # Configuration
 BAGISTO_DIR="/opt/bagisto"
 IP_ADDRESS="$(hostname -I | awk '{print $1}')"
@@ -9,9 +13,6 @@ TIMEZONE="$(cat /etc/timezone 2>/dev/null || echo UTC)"
 DB_PASSWORD="$(pwgen -s 32 1)"
 DB_ROOT_PASSWORD="$(pwgen -s 32 1)"
 
-# Install required packages
-apt-get update
-apt-get install -y curl pwgen ca-certificates
 
 # Install Docker
 if ! command -v docker >/dev/null 2>&1; then
