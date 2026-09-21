@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+MAUTIC_DIR="/opt/mautic"
+
+mkdir -p "$MAUTIC_DIR"
+cd "$MAUTIC_DIR"
+
 PASSWORD=$(openssl rand -hex 16)
 rootpass=$(openssl rand -hex 16)
 
