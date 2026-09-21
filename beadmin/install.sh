@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+: "${PASSWORD:?}"
 EMAIL="admin@example.com"
 IPv4=$(hostname -I | awk '{print $1}')
 
