@@ -21,7 +21,8 @@ mkdir -p \
 # Generate passwords
 openssl rand -base64 48 | tr -d '\n' > "${DOLIBARR_SECRETS_DIR}/MYSQL_ROOT_PASSWORD"
 openssl rand -base64 48 | tr -d '\n' > "${DOLIBARR_SECRETS_DIR}/MYSQL_PASSWORD"
-openssl rand -base64 48 | tr -d '\n' > "${DOLIBARR_SECRETS_DIR}/DOLIBARR_PASSWORD"
+#openssl rand -base64 48 | tr -d '\n' > "${DOLIBARR_SECRETS_DIR}/DOLIBARR_PASSWORD"
+printf '%s\n' "${DOLIBARR_PASSWORD}" > "${DOLIBARR_SECRETS_DIR}/DOLIBARR_PASSWORD"
 
 chmod 600 "${DOLIBARR_SECRETS_DIR}"/*
 
