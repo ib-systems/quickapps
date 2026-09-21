@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+export DEBIAN_FRONTEND=noninteractive
 
 # Configuration
 MAILCOW_DIR="/opt/mailcow-dockerized"
