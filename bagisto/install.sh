@@ -84,6 +84,17 @@ docker compose pull
 # Start Bagisto
 docker compose up -d
 
+until docker exec bagisto-mysql mysqladmin ping \
+    -h localhost \
+    -uroot \
+    -p"${DB_ROOT_PASSWORD}" \
+    --silent; do
+    sleep 2
+done
+
+docker exec bagisto php artisan migrate --force
+docker exec bagisto php artisan db:seed --force
+
 echo ""
 echo "=========================================="
 echo " Bagisto installation completed"
