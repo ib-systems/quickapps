@@ -9,7 +9,7 @@ apt-get install -y curl pwgen ca-certificates
 # Configuration
 BAGISTO_DIR="/opt/bagisto"
 IP_ADDRESS="$(hostname -I | awk '{print $1}')"
-TIMEZONE="$(cat /etc/timezone 2>/dev/null || echo UTC)"
+TIMEZONE="UTC"
 DB_PASSWORD="$(pwgen -s 32 1)"
 DB_ROOT_PASSWORD="$(pwgen -s 32 1)"
 
