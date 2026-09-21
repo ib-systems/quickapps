@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-
+export DEBIAN_FRONTEND=noninteractive
 # Install required packages
 apt-get update
 apt-get install -y curl pwgen ca-certificates
