@@ -4,8 +4,9 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y curl
+apt-get install -y curl openssl
 
+API_KEY_PEPPER=$(openssl rand -base64 48)
 timezone=$(cat /etc/timezone)
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -22,6 +23,7 @@ docker run -d \
     --restart unless-stopped \
     -p 3100:7745 \
     -e TZ="$timezone" \
+    -e HBOX_AUTH_API_KEY_PEPPER="$API_KEY_PEPPER" \
     -e HBOX_OPTIONS_ALLOW_ANALYTICS=false \
     -v /root/homebox:/data \
     ghcr.io/sysadminsmedia/homebox:latest
