@@ -27,6 +27,9 @@ mv slims9_bulian-9.7.2 slims9
 rm v9.7.2.zip
 
 cat > .env <<EOF
+MYSQL_HOST=slims-db
+MYSQL_DATABASE=slims9
+MYSQL_USER=slims_user
 MYSQL_PASSWORD=${MYSQL_PASSWORD}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 EOF
