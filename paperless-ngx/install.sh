@@ -10,8 +10,8 @@ apt-get install -y curl openssl
 
 IP_ADDRESS="$(hostname -I | awk '{print $1}')"
 
-PAPERLESS_DBPASS="$(openssl rand -base64 32)"
-PAPERLESS_SECRET_KEY="$(openssl rand -base64 64)"
+PAPERLESS_DBPASS="$(openssl rand -hex 32)"
+PAPERLESS_SECRET_KEY="$(openssl rand -hex 64)"
 
 mkdir -p /opt/paperless-ngx
 cd /opt/paperless-ngx
