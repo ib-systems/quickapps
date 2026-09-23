@@ -11,6 +11,7 @@ apt-get install -y curl openssl
 IP_ADDRESS="$(hostname -I | awk '{print $1}')"
 
 PAPERLESS_DBPASS="$(openssl rand -base64 32)"
+PAPERLESS_SECRET_KEY="$(openssl rand -base64 64)"
 
 mkdir -p /opt/paperless-ngx
 cd /opt/paperless-ngx
@@ -23,6 +24,7 @@ PAPERLESS_DBPASS=${PAPERLESS_DBPASS}
 PAPERLESS_ADMIN_USER=admin
 PAPERLESS_ADMIN_PASSWORD=${PAPERLESS_ADMIN_PASSWORD}
 PAPERLESS_ADMIN_MAIL=admin@example.com
+PAPERLESS_SECRET_KEY=${PAPERLESS_SECRET_KEY}
 EOF
 
 chmod 600 .env
@@ -49,6 +51,7 @@ services:
       PAPERLESS_ADMIN_USER: ${PAPERLESS_ADMIN_USER}
       PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD}
       PAPERLESS_ADMIN_MAIL: ${PAPERLESS_ADMIN_MAIL}
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY}
       PAPERLESS_REDIS: redis://redis:6379
     ports:
       - "8000:8000"
