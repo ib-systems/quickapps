@@ -36,7 +36,7 @@ services:
       - "3000:3000"
 
   mongo:
-    image: mongo:6.0
+    image: mongo:8.0
     restart: unless-stopped
     command: mongod --oplogSize 128 --replSet rs0 --storageEngine=wiredTiger
     volumes:
