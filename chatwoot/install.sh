@@ -96,7 +96,8 @@ EOF
 
 docker compose up -d postgres redis
 
-until docker compose exec -T postgres pg_isready -U postgres -d chatwoot; do
+until docker compose exec -T postgres pg_isready -U postgres -d chatwoot >/dev/null 2>&1
+do
     echo "Waiting for PostgreSQL..."
     sleep 5
 done
