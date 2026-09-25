@@ -43,7 +43,7 @@ services:
       - ./data/db:/data/db
 
   mongo-init-replica:
-    image: mongo:6.0
+    image: mongo:8.0
     depends_on:
       - mongo
     entrypoint: >
