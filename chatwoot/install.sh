@@ -96,7 +96,7 @@ EOF
 
 docker compose up -d postgres redis
 
-sleep 400
+#sleep 400
 
 #while ! docker compose exec -T postgres pg_isready -U postgres -d chatwoot >/dev/null 2>&1
 #do
