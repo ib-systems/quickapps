@@ -96,7 +96,12 @@ EOF
 
 docker compose up -d postgres redis
 
-sleep 150
+until docker compose exec -T postgres pg_isready -U postgres -d chatwoot; do
+    echo "Waiting for PostgreSQL..."
+    sleep 5
+done
+
+sleep 20
 
 docker compose run --rm --entrypoint "" rails bundle exec rails db:chatwoot_prepare
 
