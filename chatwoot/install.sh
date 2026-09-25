@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 export DEBIAN_FRONTEND=noninteractive
 
 IP=$(hostname -I | awk '{print $1}')
@@ -98,8 +100,11 @@ docker compose up -d postgres redis
 
 sleep 15
 
-docker compose run --rm rails bundle exec rails db:chatwoot_prepare
+docker compose run --rm rails bundle exec rails db:chatwoot_prepare || {
+    echo "Initial database preparation returned an error. Retrying..."
+    docker compose run --rm rails bundle exec rails db:chatwoot_prepare
+}
 
-docker compose up -d
+docker compose up -d rails sidekiq
 
 echo "Access URL: http://$IP:3000"
