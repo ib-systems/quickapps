@@ -105,6 +105,9 @@ sleep 400
 #done
 
 
+#docker compose run --rm --entrypoint "" rails bundle exec rails db:chatwoot_prepare
+
+docker compose run --rm --entrypoint "" rails bundle exec rails db:migrate
 docker compose run --rm --entrypoint "" rails bundle exec rails db:chatwoot_prepare
 
 docker compose up -d rails sidekiq
