@@ -96,7 +96,7 @@ EOF
 
 docker compose up -d postgres redis
 
-sleep 30
+sleep 150
 
 docker compose run --rm --entrypoint "" rails bundle exec rails db:chatwoot_prepare
 
