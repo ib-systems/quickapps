@@ -4,7 +4,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 set -e
 
-EMAIL="admin@example.com"
+EMAIL="admin@localhost.local"
 IPv4=$(hostname -I | awk '{print $1}')
 
 apt-get update
