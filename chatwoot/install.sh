@@ -1,7 +1,6 @@
 #!/bin/bash
 
 export DEBIAN_FRONTEND=noninteractive
-set -e
 
 IP=$(hostname -I | awk '{print $1}')
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
