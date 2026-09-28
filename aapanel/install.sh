@@ -12,8 +12,6 @@ chmod +x /root/install-ubuntu_6.0_en.sh
 
 echo "y" | /root/install-ubuntu_6.0_en.sh -u "Administrator" -p "$password"
 
-url=$(grep 'aaPanel Internet Address' /root/aapanel.log | awk 'NR==1 {print $4}')
-
 echo
 echo "aaPanel installed successfully."
 echo "URL: $url"
