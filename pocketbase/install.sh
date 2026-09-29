@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
 
 POCKETBASE_DIR="/home/pocketbase"
 POCKETBASE_VERSION="0.26.1"

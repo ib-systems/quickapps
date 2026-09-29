@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
 
 FORGEJO_DIR="/opt/forgejo"
 FORGEJO_VERSION="16"
